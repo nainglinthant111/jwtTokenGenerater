@@ -1,6 +1,8 @@
 const express = require('express');
 const { CompactEncrypt, importJWK, JWKECKey } = require('jose');
 const { randomBytes } = require('crypto');
+const { log } = require('console');
+require('dotenv').config();
 
 const app = express();
 const port = 3000;
@@ -23,12 +25,17 @@ async function generateToken(jsonPayload) {
     return jwe;
 }
 app.use(express.json());
+app.get('/',async(req,res)=>{
+    res.status(200).json({
+        "message":"Server is Ok!"
+    })
+});
 app.post('/generate-token', async (req, res) => {
     try {
         const jsonPayload = req.body;
         const token = await generateToken(jsonPayload); 
         console.log(token);
-        res.json({
+        res.status(200).json({
             token: token
         });
     } catch (error) {
