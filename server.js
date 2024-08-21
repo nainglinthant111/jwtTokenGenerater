@@ -8,8 +8,8 @@ const app = express();
 const port = 3000;
 
 //(Base64-encoded)
-// const secretKey = 'u5e1DZB5+/7blHgN4lPIRg==';
-const secretKey = process.env.SECRET_KEY;
+const secretKey = 'u5e1DZB5+/7blHgN4lPIRg==';
+// const secretKey = process.env.SECRET_KEY;
 
 async function generateToken(jsonPayload) {
     const key = await importJWK({
