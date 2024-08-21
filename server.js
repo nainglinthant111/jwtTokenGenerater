@@ -1,5 +1,5 @@
 const express = require('express');
-const { CompactEncrypt, importJWK, JWKECKey } = require('jose');
+const { CompactEncrypt, importJWK, compactDecrypt } = require('jose');
 const { randomBytes } = require('crypto');
 const { log } = require('console');
 require('dotenv').config();
@@ -20,6 +20,23 @@ async function generateToken(secretKey,jsonPayload) {
         .encrypt(key);
     return jwe;
 }
+async function getJsonDataFromToken(token, secretKey) {
+    try {
+        const key = await importJWK({
+            kty: 'oct',
+            k: secretKey,
+            alg: 'A128KW',
+            use: 'enc'
+        });
+         const { plaintext } = await compactDecrypt(token, key);
+         const decryptedString = Buffer.from(plaintext).toString('utf-8');
+         return JSON.parse(decryptedString);
+    } catch (error) {
+        console.error('Error during decryption:', error);
+        throw error;
+    }
+}
+
 app.use(express.json());
 app.get('/',async(req,res)=>{
     res.status(200).json({
@@ -41,6 +58,23 @@ app.post('/generate-token', async (req, res) => {
         }
     } catch (error) {
         console.error('Error generating token:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+app.get('/get-json', async (req, res) => {
+    try {
+        const tokenData = req.body;
+        const token = tokenData.token;
+        const secretKey = req.headers['x-secret-key'];
+        console.log(secretKey,tokenData.token);
+        
+        if (!token || !secretKey) {
+            return res.status(404).json({ error: 'Missing token or security key in headers' });
+        }
+        const jsonData = await getJsonDataFromToken(token, secretKey);
+        res.json({ data: jsonData });
+    } catch (error) {
+        console.error('Error getting data from token:', error);
         res.status(500).send('Internal Server Error');
     }
 });
