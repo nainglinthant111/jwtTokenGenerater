@@ -1,6 +1,7 @@
 const express = require('express');
 const { CompactEncrypt, importJWK, compactDecrypt } = require('jose');
 const { randomBytes } = require('crypto');
+const crypto = require('crypto');
 const { log } = require('console');
 require('dotenv').config();
 
@@ -20,6 +21,7 @@ async function generateToken(secretKey,jsonPayload) {
         .encrypt(key);
     return jwe;
 }
+
 async function getJsonDataFromToken(token, secretKey) {
     try {
         const key = await importJWK({
@@ -37,12 +39,17 @@ async function getJsonDataFromToken(token, secretKey) {
     }
 }
 
+function generateSecretKey() {
+    return crypto.randomBytes(16).toString('base64'); // 128-bit key
+}
+
 app.use(express.json());
 app.get('/',async(req,res)=>{
     res.status(200).json({
         "message":"Server is Ok!"
     })
 });
+
 app.post('/generate-token', async (req, res) => {
     try {
         const secretKey = req.headers['x-secret-key'];
@@ -61,6 +68,7 @@ app.post('/generate-token', async (req, res) => {
         res.status(500).send('Internal Server Error');
     }
 });
+
 app.get('/get-json', async (req, res) => {
     try {
         const tokenData = req.body;
@@ -77,6 +85,12 @@ app.get('/get-json', async (req, res) => {
         console.error('Error getting data from token:', error);
         res.status(500).send('Internal Server Error');
     }
+});
+
+app.get('/create-key', (req, res) => {
+    const secretKey = generateSecretKey();
+    console.log("Secret-key generate Successfully!")
+    res.status(200).json({ secretKey });
 });
 
 app.listen(port, () => {
