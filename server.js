@@ -3,7 +3,7 @@ const { CompactEncrypt, importJWK, compactDecrypt } = require("jose");
 const { randomBytes } = require("crypto");
 const crypto = require("crypto");
 require("dotenv").config();
-import cors from "cors";
+const cors = require("cors");
 
 const app = express();
 app.use(cors({ origin: "*" }));
@@ -24,6 +24,9 @@ async function generateToken(secretKey, jsonPayload) {
         .encrypt(key);
     return jwe;
 }
+
+// In-memory store to back 64-character opaque tokens
+const tokenStore = new Map();
 
 async function getJsonDataFromToken(token, secretKey) {
     try {
@@ -58,11 +61,10 @@ app.post("/generate-token", async (req, res) => {
         const secretKey = req.headers["x-secret-key"];
         if (secretKey) {
             const jsonPayload = req.body;
-            const token = await generateToken(secretKey, jsonPayload);
-            console.log("Token Ok!");
-            res.status(200).json({
-                token: token,
-            });
+            // 64-character token: 32 random bytes hex-encoded
+            const token = crypto.randomBytes(32).toString("hex");
+            tokenStore.set(token, { payload: jsonPayload, secretKey });
+            res.status(200).json({ token });
         } else {
             res.status(404).send("SecretKey key is error");
         }
@@ -84,8 +86,16 @@ app.get("/get-json", async (req, res) => {
                 .status(404)
                 .json({ error: "Missing token or security key in headers" });
         }
-        const jsonData = await getJsonDataFromToken(token, secretKey);
-        res.json({ data: jsonData });
+        const record = tokenStore.get(token);
+        if (!record) {
+            return res.status(404).json({ error: "Token not found" });
+        }
+        if (record.secretKey !== secretKey) {
+            return res
+                .status(403)
+                .json({ error: "Invalid secret key for token" });
+        }
+        res.json({ data: record.payload });
     } catch (error) {
         console.error("Error getting data from token:", error);
         res.status(500).send("Internal Server Error");
@@ -94,7 +104,6 @@ app.get("/get-json", async (req, res) => {
 
 app.get("/create-key", (req, res) => {
     const secretKey = generateSecretKey();
-    console.log("Secret-key generate Successfully!");
     res.status(200).json({ secretKey });
 });
 
