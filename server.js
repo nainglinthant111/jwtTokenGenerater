@@ -76,10 +76,8 @@ app.post("/generate-token", async (req, res) => {
 
 app.get("/get-json", async (req, res) => {
     try {
-        const tokenData = req.body;
-        const token = tokenData.token;
+        const token = req.query.token;
         const secretKey = req.headers["x-secret-key"];
-        console.log(secretKey, tokenData.token);
 
         if (!token || !secretKey) {
             return res
